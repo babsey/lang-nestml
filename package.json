@@ -19,7 +19,8 @@
     "@codemirror/autocomplete": "^6.18.1",
     "@codemirror/language": "^6.0.0",
     "@lezer/highlight": "^1.0.0",
-    "@lezer/lr": "^1.0.0"
+    "@lezer/lr": "^1.0.0",
+    "@lezer/yaml": "^1.0.3"
   },
   "devDependencies": {
     "@lezer/generator": "^1.0.0",
