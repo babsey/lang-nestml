@@ -14,6 +14,9 @@ import { parser } from "@lezer/yaml";
 
 import { parser as frontmatterParser } from "./frontmatter.grammar";
 
+/// A language provider based on the [Lezer YAML
+/// parser](https://github.com/lezer-parser/yaml), extended with
+/// highlighting and indentation information.
 export const nestmlLanguage = LRLanguage.define({
   name: "nestml",
   parser: parser.configure({
@@ -65,6 +68,7 @@ export const nestmlCompletion = nestmlLanguage.data.of({
   ]),
 });
 
+/// Language support for NESTML.
 export function nestml() {
   return new LanguageSupport(nestmlLanguage, [nestmlCompletion]);
 }
