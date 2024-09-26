@@ -45,7 +45,7 @@ export const nestmlLanguage = LRLanguage.define({
       }),
       foldNodeProp.add({
         "FlowMapping FlowSequence": foldInside,
-        // "BlockSequence Pair BlockLiteral": (node, state) => ({ from: state.doc.lineAt(node.from).to, to: node.to }),
+        "BlockSequence BlockLiteral": (node, state) => ({ from: state.doc.lineAt(node.from).to, to: node.to }),
       }),
     ],
   }),
