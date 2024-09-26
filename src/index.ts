@@ -1,36 +1,54 @@
 import { completeFromList } from "@codemirror/autocomplete";
 import {
   LRLanguage,
+  Language,
   LanguageSupport,
   delimitedIndent,
   foldInside,
   foldNodeProp,
   indentNodeProp,
 } from "@codemirror/language";
-import { styleTags, tags as t } from "@lezer/highlight";
+import { SyntaxNode, parseMixed } from "@lezer/common";
+import { styleTags, tags } from "@lezer/highlight";
+import { parser } from "@lezer/yaml";
 
-import { parser } from "./syntax.grammar";
+import { parser as frontmatterParser } from "./frontmatter.grammar";
 
 export const nestmlLanguage = LRLanguage.define({
+  name: "nestml",
   parser: parser.configure({
     props: [
       indentNodeProp.add({
-        Application: delimitedIndent({ closing: ")", align: false }),
+        Stream: (cx) => {
+          for (
+            let before = cx.node.resolve(cx.pos, -1) as SyntaxNode | null;
+            before && before.to >= cx.pos;
+            before = before.parent
+          ) {
+            if (before.name == "BlockLiteralContent" && before.from < before.to) return cx.baseIndentFor(before);
+            if (before.name == "BlockLiteral") return cx.baseIndentFor(before) + cx.unit;
+            if (before.name == "BlockSequence" || before.name == "BlockMapping") return cx.column(before.from, 1);
+            if (before.name == "QuotedLiteral") return null;
+            if (before.name == "Literal") {
+              let col = cx.column(before.from, 1);
+              if (col == cx.lineIndent(before.from, 1)) return col; // Start on own line
+              if (before.to > cx.pos) return null;
+            }
+          }
+          return null;
+        },
+        FlowMapping: delimitedIndent({ closing: "}" }),
+        FlowSequence: delimitedIndent({ closing: "]" }),
       }),
       foldNodeProp.add({
-        Application: foldInside,
-      }),
-      styleTags({
-        Identifier: t.variableName,
-        Boolean: t.bool,
-        String: t.string,
-        LineComment: t.lineComment,
-        "( )": t.paren,
+        "FlowMapping FlowSequence": foldInside,
+        "BlockSequence Pair BlockLiteral": (node, state) => ({ from: state.doc.lineAt(node.from).to, to: node.to }),
       }),
     ],
   }),
   languageData: {
     commentTokens: { line: "#" },
+    indentOnInput: /^\s*[\]\}]$/,
   },
 });
 
@@ -49,4 +67,31 @@ export const nestmlCompletion = nestmlLanguage.data.of({
 
 export function nestml() {
   return new LanguageSupport(nestmlLanguage, [nestmlCompletion]);
+}
+
+const frontmatterLanguage = LRLanguage.define({
+  name: "nestml-frontmatter",
+  parser: frontmatterParser.configure({
+    props: [styleTags({ DashLine: tags.meta })],
+  }),
+});
+
+/// Returns language support for a document parsed as `config.content`
+/// with an optional NESTML "frontmatter" delimited by lines that
+/// contain three dashes.
+export function nestmlFrontmatter(config: { content: Language | LanguageSupport }) {
+  let { language, support } =
+    config.content instanceof LanguageSupport ? config.content : { language: config.content, support: [] };
+  return new LanguageSupport(
+    frontmatterLanguage.configure({
+      wrap: parseMixed((node) => {
+        return node.name == "FrontmatterContent"
+          ? { parser: nestmlLanguage.parser }
+          : node.name == "Body"
+          ? { parser: language.parser }
+          : null;
+      }),
+    }),
+    support
+  );
 }
